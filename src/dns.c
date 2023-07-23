@@ -35,8 +35,15 @@ static void convert_hostname_to_dns_compatible(char* qname_addr, char* hostname)
     char* ptr = hostname;
     int counter = 0;
     while (true) {
-        if (ptr[counter] == 0) break;
-        else if (ptr[counter] == '.') {
+        if (ptr[counter] == 0) {
+            sprintf(res, "%d", counter);
+            res += strlen(res);
+            strncpy(res, ptr, counter);
+            res += strlen(res);
+            ptr += (counter + 1);
+            res[counter] = 0x00;
+            break;
+        } else if (ptr[counter] == '.') {
             sprintf(res, "%d", counter);
             res += strlen(res);
             strncpy(res, ptr, counter);
