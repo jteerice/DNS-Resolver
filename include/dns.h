@@ -1,15 +1,17 @@
 #ifndef DNS_H
 #define DNS_H
 
+#define DNS_PORT 53
+
 #define MAX_DNS_ADDRS 10
 #define MAX_DNS_ADDR_LEN 16
 #define BUF_LEN 100
 #define PACKET_SIZE 65535
 
 #define QUERY_TYPE_FLAG 0x8000
-#define RECURSE_FLAG 0x400
-#define HOST_ADDRESSES 0x0001
-#define Q_CLASS 0x0001
+#define RECURSE_FLAG 0b0000000100000000
+#define HOST_ADDRESSES_FLAG 0x0001
+#define Q_CLASS_FLAG 0x0001
 
 struct dns_header {
     uint16_t identifier;
@@ -27,7 +29,6 @@ struct dns_q_flags {
 } __attribute__((packed));
 typedef struct dns_q_flags Q_FLAGS;
 
-void retrieve_dns_servers(char** dns_addrs);
 void resolve_hostname(const char* hostname);
 
 #endif
