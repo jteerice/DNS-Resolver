@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
         exit(0);
     }
 
-    resolve_hostname("www.hackthebox.com");
+    resolve_hostname("app.hackthebox.com");
 
     return 0;
 }

@@ -15,6 +15,7 @@ static void init_dns_query(unsigned char* packet) {
     header->f_c = (uint16_t)(RECURSE_FLAG >> 8);
     header->q_count = (uint16_t)htons(1);
     memcpy(packet, header, sizeof(DNS_HEADER));
+    free(header);
 }
 
 static void init_q_flags(uint16_t* q_flags) {
@@ -77,7 +78,7 @@ static void convert_hostname_to_dns_compatible(char* qname_addr, char* hostname)
 static char** init_and_retrieve_dns_servers() {
     char **dns_addrs = malloc(MAX_DNS_ADDRS * sizeof(char *));
     for (int i = 0; i < MAX_DNS_ADDRS; i++) {
-        *dns_addrs = malloc(INET_ADDRSTRLEN);
+        dns_addrs[i] = malloc(INET_ADDRSTRLEN);
     }
     retrieve_dns_servers(dns_addrs);
 
@@ -97,6 +98,74 @@ static int build_packet(unsigned char* packet, const char* hostname) {
     return size + 1;
 }
 
+int create_socket() {
+    int sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock_fd == -1) {
+        fprintf(stderr, "Error: Socket could not be created\n");
+        exit(0);
+    }
+    return sock_fd;
+}
+
+static void send_recieve_packet(char** dns_addrs, unsigned char* packet, int packet_len) {
+    int sock_fd = create_socket(); 
+
+    /* Create server address struct */
+    struct sockaddr_in server_addr;
+    bzero(&server_addr, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(DNS_PORT);
+    inet_pton(AF_INET, dns_addrs[0], &(server_addr.sin_addr));
+
+    /* Connect to dns server */
+    if (connect(sock_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) != 0) {
+        fprintf(stderr, "Error: Could not connect to DNS server\n");
+        exit(0);
+    }
+
+    /* Send it! */
+    write(sock_fd, packet, packet_len);
+    memset(packet, 0, packet_len);
+
+    if (read(sock_fd, packet, sizeof(packet)) <= 0) {
+        fprintf(stderr, "Error: DNS response was not recieved\n");
+        exit(0);
+    }
+}
+
+static void free_dns_servers(char** dns_addrs) {
+    for (int i = 0; i < MAX_DNS_ADDRS; i++) {
+        free(dns_addrs[i]);
+    }
+    free(dns_addrs);
+}
+
+static void convert_to_dot_format(unsigned char* q_name_addr) {
+    unsigned char* ptr = q_name_addr;
+    unsigned char* res_ptr = q_name_addr;
+    int i = 0;
+    while (true) {
+        int tmp = ptr[0];
+        if (tmp == 0) break;
+        ptr += 1;
+        for (i = 0; i < tmp; i++) {
+            res_ptr[i] = ptr[i];
+        }
+        res_ptr[i] = '.';
+        res_ptr += tmp + 1;
+        ptr += tmp;
+    }
+}
+
+static char* parse_response_packet(unsigned char* packet) {
+    DNS_HEADER* header = (DNS_HEADER*)&packet;
+    int size = sizeof(DNS_HEADER);
+    unsigned char* q_name_addr = (unsigned char*)&packet[size];
+    convert_to_dot_format(q_name_addr);
+    if (header) {}
+    return "placeholder";
+}
+
 void resolve_hostname(const char* hostname) {
     unsigned char packet[PACKET_SIZE];
     memset(packet, 0, sizeof(packet));
@@ -105,24 +174,11 @@ void resolve_hostname(const char* hostname) {
 
     int packet_len = build_packet(packet, hostname);
 
+    send_recieve_packet(dns_addrs, packet, packet_len);
+    free_dns_servers(dns_addrs);
 
-
-    /* Build socket */
-    int sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
-    struct sockaddr_in server_addr;
-    bzero(&server_addr, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(DNS_PORT);
-    inet_pton(AF_INET, dns_addrs[0], &(server_addr.sin_addr));
-
-    /* Connect to dns server */
-    if (connect(sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0) {
-        printf("Error: Could not connect to DNS server\n");
-        exit(0);
-    }
-
-    /* Send it! */
-    write(sock_fd, packet, packet_len);
-
+    char* ip_address = parse_response_packet(packet);
+    if (ip_address) {}
+    
 }
 
