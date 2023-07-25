@@ -127,7 +127,7 @@ static void send_recieve_packet(char** dns_addrs, unsigned char* packet, int pac
     write(sock_fd, packet, packet_len);
     memset(packet, 0, packet_len);
 
-    if (read(sock_fd, packet, sizeof(packet)) <= 0) {
+    if (read(sock_fd, (unsigned char*)packet, PACKET_SIZE) <= 0) {
         fprintf(stderr, "Error: DNS response was not recieved\n");
         exit(0);
     }
@@ -146,7 +146,10 @@ static void convert_to_dot_format(unsigned char* q_name_addr) {
     int i = 0;
     while (true) {
         int tmp = ptr[0];
-        if (tmp == 0) break;
+        if (tmp == 0) {
+            res_ptr -= 1;
+            break;
+        }
         ptr += 1;
         for (i = 0; i < tmp; i++) {
             res_ptr[i] = ptr[i];
@@ -155,6 +158,7 @@ static void convert_to_dot_format(unsigned char* q_name_addr) {
         res_ptr += tmp + 1;
         ptr += tmp;
     }
+    *res_ptr = 0x00;
 }
 
 static char* parse_response_packet(unsigned char* packet) {
@@ -162,7 +166,11 @@ static char* parse_response_packet(unsigned char* packet) {
     int size = sizeof(DNS_HEADER);
     unsigned char* q_name_addr = (unsigned char*)&packet[size];
     convert_to_dot_format(q_name_addr);
+    size += strlen((char*)q_name_addr);
+    Q_FLAGS* q_flags = (Q_FLAGS*)&packet[size];
+    size += sizeof(Q_FLAGS);
     if (header) {}
+    if (q_flags) {}
     return "placeholder";
 }
 
